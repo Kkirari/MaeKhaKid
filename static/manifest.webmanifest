@@ -1,0 +1,17 @@
+{
+	"name": "ลูกแม่ค้า POS",
+	"short_name": "ลูกแม่ค้า",
+	"description": "ระบบขายหน้าร้านสำหรับร้านของชำ",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "landscape",
+	"background_color": "#f4ebd8",
+	"theme_color": "#f4ebd8",
+	"lang": "th",
+	"icons": [
+		{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+	]
+}

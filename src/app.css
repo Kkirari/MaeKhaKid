@@ -1,0 +1,279 @@
+@import "tailwindcss";
+
+/* ============================================================
+   ลูกแม่ค้า POS — ดีไซน์ "ดินตลาด" (Earthtone Market)
+   เขียวป่า + น้ำตาลดิน + ทองอุ่น บนพื้นทรายกระดาษ
+   ปุ่มทรงป้ายราคา เงาแข็งไม่เบลอ — ลื่นบนแท็บเล็ตเก่า
+   (แอนิเมชัน transform/opacity เท่านั้น)
+   ============================================================ */
+
+@theme {
+    /* ===== พาเลตหลัก (กำหนดโดยผู้ใช้) =====
+       #546B41 เขียวป่า · #99AD7A เขียวสาง · #DCCCAC ทราย · #FFF8EC ครีม */
+
+    /* พื้น */
+    --color-paper: #f4ebd8; /* พื้นแอพ (ครีมอมทราย) */
+    --color-paper-2: #dcccac; /* ทราย — ชิป/พื้นรอง */
+    --color-card: #fff8ec; /* ครีม — พื้นการ์ด */
+
+    /* หมึกดิน */
+    --color-ink: #2c2a20;
+    --color-ink-soft: #837954;
+    --color-line: #d0bd98; /* ขอบ (ทรายเข้มขึ้นนิด) */
+
+    /* เขียวป่า (หลัก/ยืนยัน) */
+    --color-forest: #6b7d5b;
+    --color-forest-ink: #3c4f2e; /* เขียวเข้ม — เงาปุ่ม/ขอบล่าง */
+
+    /* เขียวสาง (รอง) */
+    --color-sage: #99ad7a;
+    --color-sage-ink: #7a9159; /* เขียวสางเข้ม — เงาปุ่ม */
+
+    /* ดินเผา/ทอง (ราคา + ไฮไลต์) */
+    --color-clay: #a8763f;
+    --color-clay-ink: #774a22;
+    --color-gold: #cb9d51;
+    --color-sand-soft: #efe3c6;
+
+    /* ดินเผาแดง (เตือน/ผิดพลาด) */
+    --color-alert: #ad4a2d;
+    --color-alert-ink: #863722;
+
+    --font-display: "Bai Jamjuree", system-ui, sans-serif;
+    --font-body: "Anuphan", system-ui, sans-serif;
+
+    --radius-xl: 1.1rem;
+}
+
+:root {
+    font-size: 18px;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* เกรนกระดาษบาง ๆ (วาดครั้งเดียว ไม่แอนิเมต = ถูกบน GPU เก่า) */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+button {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    font-family: inherit;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 99px;
+}
+
+@layer components {
+    /* ---------- ปุ่ม : ทรงป้ายราคา เงาแข็ง ---------- */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 font-display font-semibold;
+        transition:
+            transform 0.06s ease,
+            box-shadow 0.06s ease,
+            background-color 0.15s ease;
+    }
+    .btn:active {
+        transform: translateY(3px);
+    }
+
+    /* รอง = เขียวสาง (ตัวอักษรหมึกเข้มเพื่อคอนทราสต์) */
+    .btn-primary {
+        background: var(--color-sage);
+        color: var(--color-forest-ink);
+        box-shadow: 0 4px 0 var(--color-sage-ink);
+    }
+    .btn-primary:active {
+        box-shadow: 0 1px 0 var(--color-sage-ink);
+    }
+
+    /* ยืนยัน/ไป = เขียวป่า */
+    .btn-success {
+        background: var(--color-forest);
+        color: #fff;
+        box-shadow: 0 4px 0 var(--color-forest-ink);
+    }
+    .btn-success:active {
+        box-shadow: 0 1px 0 var(--color-forest-ink);
+    }
+
+    .btn-soft {
+        background: var(--color-card);
+        color: var(--color-ink);
+        box-shadow: 0 3px 0 var(--color-line);
+    }
+    .btn-soft:active {
+        box-shadow: 0 1px 0 var(--color-line);
+    }
+
+    .btn-ghost {
+        background: transparent;
+        color: var(--color-ink-soft);
+    }
+    .btn-ghost:active {
+        transform: translateY(1px);
+    }
+
+    .btn:disabled {
+        background: var(--color-paper-2);
+        color: var(--color-ink-soft);
+        box-shadow: none;
+        transform: none;
+        opacity: 0.7;
+    }
+
+    /* ---------- การ์ด ---------- */
+    .card {
+        background: var(--color-card);
+        border: 1.5px solid var(--color-line);
+        border-radius: var(--radius-xl);
+    }
+
+    /* ---------- อินพุต ---------- */
+    .field {
+        @apply w-full rounded-2xl px-4 py-3 text-lg outline-none;
+        background: var(--color-card);
+        border: 1.5px solid var(--color-line);
+        color: var(--color-ink);
+        transition: border-color 0.15s ease;
+    }
+    .field:focus {
+        border-color: var(--color-forest);
+    }
+    .field::placeholder {
+        color: var(--color-ink-soft);
+    }
+
+    /* ---------- แท็บนำทาง ---------- */
+    .tab {
+        @apply rounded-full px-4 py-2 font-display text-base font-semibold;
+        color: var(--color-ink-soft);
+        transition: all 0.15s ease;
+    }
+    .tab-active {
+        background: var(--color-forest);
+        color: var(--color-card);
+    }
+
+    /* ---------- ป้ายราคา ---------- */
+    .pricetag {
+        @apply inline-flex items-center font-display font-bold tabular-nums;
+        color: var(--color-clay-ink);
+    }
+
+    /* ---------- แถบเลื่อน (slider) ---------- */
+    .pager-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 12px;
+        border-radius: 99px;
+        background: var(--color-paper-2);
+        outline: none;
+    }
+    .pager-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 44px;
+        height: 22px;
+        border-radius: 99px;
+        background: var(--color-forest);
+        border: 3px solid var(--color-card);
+        box-shadow: 0 2px 0 var(--color-forest-ink);
+        cursor: pointer;
+    }
+    .pager-slider::-moz-range-thumb {
+        width: 44px;
+        height: 22px;
+        border-radius: 99px;
+        background: var(--color-forest);
+        border: 3px solid var(--color-card);
+        cursor: pointer;
+    }
+}
+
+/* ---------- แอนิเมชัน (ถูก: transform/opacity) ---------- */
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.animate-rise {
+    animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes flash-in {
+    0% {
+        background-color: var(--color-sand-soft);
+        transform: scale(1.015);
+    }
+    100% {
+        background-color: transparent;
+        transform: scale(1);
+    }
+}
+.flash-in {
+    animation: flash-in 0.65s ease-out;
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.04);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+.animate-pop {
+    animation: pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
