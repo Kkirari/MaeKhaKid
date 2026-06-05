@@ -13,6 +13,7 @@
 	import { pendingSyncCount, syncPendingSales, isCloudEnabled } from '$lib/sync/sync';
 	import { sendLineNotify, buildDailyReport } from '$lib/notify';
 	import { settings } from '$lib/settings';
+	import DatePicker from '$lib/components/DatePicker.svelte';
 
 	function todayStr(): string {
 		const d = new Date();
@@ -106,7 +107,7 @@
 	<!-- ===== หัว ===== -->
 	<div class="mb-3 flex flex-wrap items-center gap-2">
 		<h1 class="font-display text-2xl font-bold text-ink">สรุปยอด</h1>
-		<input type="date" bind:value={dateStr} onchange={load} class="field w-auto py-2 tnum" />
+		<DatePicker bind:value={dateStr} onchange={load} />
 		<div class="ml-auto flex flex-wrap items-center gap-2">
 			{#if cloud}
 				<span
