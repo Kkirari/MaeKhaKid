@@ -126,7 +126,7 @@
 		<div class="px-4 pb-3">
 			{#if method === 'cash'}
 				<!-- เงินสด: ธนบัตร (ซ้าย) + numpad (ขวา) -->
-				<div class="grid gap-3" style="grid-template-columns: 1fr 200px">
+				<div class="grid gap-3" style="grid-template-columns: 65fr 35fr">
 
 					<!-- ซ้าย: ธนบัตรด่วน + เงินทอน -->
 					<div class="flex flex-col gap-2">
@@ -247,9 +247,9 @@
 
 	.numpad-key {
 		font-family: var(--font-display);
-		font-size: 1.2rem;
+		font-size: 1.5rem;
 		font-weight: 700;
-		padding: 0.6rem 0;
+		aspect-ratio: 1;
 		border-radius: 0.75rem;
 		transition: transform 0.06s ease, box-shadow 0.06s ease;
 	}
