@@ -252,9 +252,9 @@
 		font-weight: 700;
 		aspect-ratio: 1;
 		border-radius: 0.75rem;
-		background: var(--color-ink);
+		background: #5c5240;
 		color: var(--color-paper);
-		box-shadow: 0 4px 0 #111009;
+		box-shadow: 0 4px 0 #3a3320;
 		transition: transform 0.06s ease, box-shadow 0.06s ease;
 	}
 	.numpad-key:active {
