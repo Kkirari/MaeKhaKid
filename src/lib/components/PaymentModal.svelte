@@ -20,7 +20,7 @@
 	} = $props();
 
 	let method = $state<'cash' | 'promptpay'>('cash');
-	let cashReceived = $state<number | null>(null);
+	let padStr = $state('');
 	let qrUrl = $state<string>('');
 	let qrError = $state<string>('');
 	let saving = $state(false);
@@ -36,8 +36,11 @@
 
 	const denomCols = $derived(quickCash.length <= 3 ? 3 : quickCash.length === 4 ? 4 : 3);
 
+	const cashReceived = $derived(padStr === '' ? null : Number(padStr));
 	const change = $derived(cashReceived != null ? Math.round((cashReceived - total) * 100) / 100 : null);
 	const canPayCash = $derived(cashReceived != null && cashReceived >= total);
+
+	const PAD_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'];
 
 	$effect(() => {
 		if (method === 'promptpay') generateQr();
@@ -58,11 +61,19 @@
 		}
 	}
 
+	function padDigit(d: string) {
+		if (padStr === '' && d === '00') return;
+		if ((padStr + d).length > 6) return;
+		padStr += d;
+	}
+	function padBack() {
+		padStr = padStr.slice(0, -1);
+	}
 	function setCash(amount: number) {
-		cashReceived = amount;
+		padStr = String(amount);
 	}
 	function exactCash() {
-		cashReceived = total;
+		padStr = String(total);
 	}
 
 	async function confirm() {
@@ -91,7 +102,7 @@
 	role="presentation"
 	onclick={(e) => e.target === e.currentTarget && onClose()}
 >
-	<div class="animate-pop card flex max-h-full w-full max-w-2xl flex-col overflow-hidden p-0">
+	<div class="animate-pop card flex max-h-full w-full max-w-3xl flex-col overflow-hidden p-0">
 		<!-- หัว: ยอดที่ต้องชำระ -->
 		<div class="bg-ink px-5 py-3 text-paper">
 			<div class="font-display text-sm font-semibold tracking-wide opacity-70">ยอดที่ต้องชำระ</div>
@@ -112,43 +123,70 @@
 			>
 		</div>
 
-		<div class="px-4 pb-2">
+		<div class="px-4 pb-3">
 			{#if method === 'cash'}
-				<input
-					id="cash-input"
-					type="number"
-					inputmode="decimal"
-					bind:value={cashReceived}
-					placeholder="0"
-					class="field mb-2 py-2 text-right font-display text-2xl font-bold tnum"
-				/>
-				<!-- ธนบัตรที่ครอบคลุมยอด -->
-				<div class="mb-2 grid gap-2" style="grid-template-columns: repeat({denomCols}, minmax(0, 1fr))">
-					{#each quickCash as amt (amt)}
-						<button class="btn btn-soft py-2.5 text-base" onclick={() => setCash(amt)}>
-							{fmtBaht(amt)} ฿
-						</button>
-					{/each}
-				</div>
-				<div class="mb-2 grid grid-cols-2 gap-2">
-					<button
-						class="btn py-2.5 text-base"
-						style="background: var(--color-sand-soft); color: var(--color-clay-ink); box-shadow: 0 3px 0 var(--color-gold)"
-						onclick={exactCash}>พอดี ({fmtBaht(total)})</button
-					>
-					<button class="btn btn-soft py-2.5 text-base" onclick={() => (cashReceived = null)}>ล้าง</button>
-				</div>
-				{#if change != null}
-					<div
-						class="animate-pop rounded-2xl px-4 py-2 text-center font-display text-xl font-bold tnum"
-						style={change >= 0
-							? 'background: var(--color-paper-2); color: var(--color-forest-ink)'
-							: 'background: var(--color-sand-soft); color: var(--color-alert-ink)'}
-					>
-						{change >= 0 ? 'เงินทอน' : 'ยังขาด'} {fmtBaht(Math.abs(change))} ฿
+				<!-- เงินสด: ธนบัตร (ซ้าย) + numpad (ขวา) -->
+				<div class="grid gap-3" style="grid-template-columns: 1fr 200px">
+
+					<!-- ซ้าย: ธนบัตรด่วน + เงินทอน -->
+					<div class="flex flex-col gap-2">
+						<div class="text-sm font-semibold text-ink-soft">รับธนบัตร</div>
+						<div class="grid gap-2" style="grid-template-columns: repeat({denomCols}, minmax(0, 1fr))">
+							{#each quickCash as amt (amt)}
+								<button class="btn btn-soft py-3 text-base font-bold" onclick={() => setCash(amt)}>
+									{fmtBaht(amt)} ฿
+								</button>
+							{/each}
+						</div>
+						<div class="grid grid-cols-2 gap-2">
+							<button
+								class="btn py-2.5 text-base"
+								style="background: var(--color-sand-soft); color: var(--color-clay-ink); box-shadow: 0 3px 0 var(--color-gold)"
+								onclick={exactCash}>พอดี ({fmtBaht(total)})</button
+							>
+							<button class="btn btn-soft py-2.5 text-base" onclick={() => (padStr = '')}>ล้าง</button>
+						</div>
+
+						<!-- เงินทอน / ขาด -->
+						<div class="mt-auto">
+							{#if change != null}
+								<div
+									class="animate-pop rounded-2xl px-4 py-3 text-center font-display text-2xl font-bold tnum"
+									style={change >= 0
+										? 'background: var(--color-paper-2); color: var(--color-forest-ink)'
+										: 'background: var(--color-sand-soft); color: var(--color-alert-ink)'}
+								>
+									{change >= 0 ? 'เงินทอน' : 'ยังขาด'} {fmtBaht(Math.abs(change))} ฿
+								</div>
+							{:else}
+								<div class="rounded-2xl px-4 py-3 text-center text-ink-soft" style="background: var(--color-paper-2)">
+									กดธนบัตร หรือพิมพ์จำนวนเงิน →
+								</div>
+							{/if}
+						</div>
 					</div>
-				{/if}
+
+					<!-- ขวา: numpad -->
+					<div class="flex flex-col gap-1.5">
+						<!-- จอแสดงผล -->
+						<div class="numpad-display tnum">
+							{padStr || '0'}
+						</div>
+						<!-- ปุ่มตัวเลข -->
+						<div class="numpad-grid">
+							{#each PAD_KEYS as k (k)}
+								<button
+									class="numpad-key btn btn-soft"
+									class:numpad-back={k === '⌫'}
+									onclick={() => (k === '⌫' ? padBack() : padDigit(k))}
+								>{k}</button>
+							{/each}
+						</div>
+					</div>
+				</div>
+
 			{:else}
+				<!-- พร้อมเพย์ -->
 				<div class="flex flex-col items-center py-2">
 					{#if qrError}
 						<div
@@ -159,7 +197,7 @@
 						</div>
 					{:else if qrUrl}
 						<div class="rounded-2xl border-2 border-line bg-white p-3">
-							<img src={qrUrl} alt="PromptPay QR" class="h-52 w-52" />
+							<img src={qrUrl} alt="PromptPay QR" class="h-56 w-56" />
 						</div>
 						<div class="mt-2 text-center text-ink-soft">
 							ให้ลูกค้าสแกนจ่าย <span class="pricetag text-lg">{fmtBaht(total)} ฿</span><br />
@@ -185,3 +223,38 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.numpad-display {
+		background: var(--color-ink);
+		color: var(--color-gold);
+		border-radius: 0.75rem;
+		padding: 0.4rem 0.75rem;
+		text-align: right;
+		font-family: var(--font-display);
+		font-size: 1.6rem;
+		font-weight: 700;
+		line-height: 1.2;
+		word-break: break-all;
+	}
+
+	.numpad-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
+		flex: 1;
+	}
+
+	.numpad-key {
+		font-family: var(--font-display);
+		font-size: 1.2rem;
+		font-weight: 700;
+		padding: 0.6rem 0;
+		border-radius: 0.75rem;
+		transition: transform 0.06s ease, box-shadow 0.06s ease;
+	}
+
+	.numpad-back {
+		color: var(--color-alert);
+	}
+</style>
