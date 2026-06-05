@@ -70,7 +70,7 @@
 		padStr = padStr.slice(0, -1);
 	}
 	function setCash(amount: number) {
-		padStr = String(amount);
+		padStr = String((Number(padStr) || 0) + amount);
 	}
 	function exactCash() {
 		padStr = String(total);
@@ -134,7 +134,7 @@
 						<div class="grid gap-2" style="grid-template-columns: repeat({denomCols}, minmax(0, 1fr))">
 							{#each quickCash as amt (amt)}
 								<button class="btn btn-soft py-3 text-base font-bold" onclick={() => setCash(amt)}>
-									{fmtBaht(amt)} ฿
+									+{fmtBaht(amt)} ฿
 								</button>
 							{/each}
 						</div>
