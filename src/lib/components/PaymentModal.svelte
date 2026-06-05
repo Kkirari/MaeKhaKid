@@ -167,7 +167,7 @@
 					</div>
 
 					<!-- ขวา: numpad -->
-					<div class="flex flex-col gap-1.5">
+					<div class="flex flex-col gap-1.5 rounded-2xl p-2.5" style="background: var(--color-ink); box-shadow: 0 4px 0 #111009">
 						<!-- จอแสดงผล -->
 						<div class="numpad-display tnum">
 							{padStr || '0'}
@@ -226,9 +226,10 @@
 
 <style>
 	.numpad-display {
-		background: var(--color-ink);
+		background: #111009;
 		color: var(--color-gold);
-		border-radius: 0.75rem;
+		border-radius: 0.6rem;
+		border: 1.5px solid #3a3728;
 		padding: 0.4rem 0.75rem;
 		text-align: right;
 		font-family: var(--font-display);
