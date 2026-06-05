@@ -176,7 +176,7 @@
 						<div class="numpad-grid">
 							{#each PAD_KEYS as k (k)}
 								<button
-									class="numpad-key btn btn-soft"
+									class="numpad-key btn"
 									class:numpad-back={k === '⌫'}
 									onclick={() => (k === '⌫' ? padBack() : padDigit(k))}
 								>{k}</button>
@@ -251,10 +251,17 @@
 		font-weight: 700;
 		aspect-ratio: 1;
 		border-radius: 0.75rem;
+		background: var(--color-ink);
+		color: var(--color-paper);
+		box-shadow: 0 4px 0 #111009;
 		transition: transform 0.06s ease, box-shadow 0.06s ease;
+	}
+	.numpad-key:active {
+		transform: translateY(3px);
+		box-shadow: 0 1px 0 #111009;
 	}
 
 	.numpad-back {
-		color: var(--color-alert);
+		color: var(--color-gold);
 	}
 </style>
