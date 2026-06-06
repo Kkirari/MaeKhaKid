@@ -327,7 +327,7 @@
 					</button>
 					{#if showBestSellers}
 						<div class="flex-1 overflow-y-auto">
-							{#each bestSellers as s, i (s.name)}
+							{#each bestSellers as s, i (s.product_id ? s.product_id : 'manual:' + s.name)}
 								<div
 									class="card mb-2 flex items-center gap-2 p-3"
 									style="animation: rise 0.3s cubic-bezier(0.16,1,0.3,1) both; animation-delay:{i * 30}ms"
