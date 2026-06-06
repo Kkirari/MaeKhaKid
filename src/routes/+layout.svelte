@@ -181,6 +181,16 @@
 	});
 </script>
 
+<svelte:head>
+	{#if $settings.uiScale && $settings.uiScale !== 100}
+		<style>
+			:root {
+				font-size: {$settings.uiScale}%;
+			}
+		</style>
+	{/if}
+</svelte:head>
+
 <div class="relative z-10 flex h-full flex-col">
 	<!-- ===== แถบหัว ===== -->
 	<header

@@ -9,6 +9,7 @@
 	let sPromptpay = $state($settings.promptpayId);
 	let sLineToken = $state($settings.lineNotifyToken);
 	let sDevMode = $state($settings.devMode);
+	let sUiScale = $state($settings.uiScale || 100);
 	let seeding = $state(false);
 	let showToken = $state(false);
 
@@ -18,7 +19,8 @@
 			shopName: sShopName.trim() || 'ลูกแม่ค้า',
 			promptpayId: sPromptpay.trim(),
 			lineNotifyToken: sLineToken.trim(),
-			devMode: sDevMode
+			devMode: sDevMode,
+			uiScale: sUiScale
 		});
 		// ถ้าเพิ่งเปิด dev mode → seed ข้อมูลตัวอย่างทันที
 		if (sDevMode && wasDevOff) {
@@ -72,6 +74,25 @@
 				</div>
 				<a href="https://notify-bot.line.me/my/" target="_blank" rel="noopener"
 					class="mt-1 block text-xs" style="color:var(--color-forest)">→ สร้าง token ที่ notify-bot.line.me</a>
+			</label>
+
+			<!-- UI Scale Slider -->
+			<label class="block rounded-2xl border-2 border-dashed p-4" style="border-color:var(--color-line)">
+				<div class="flex items-center justify-between">
+					<span class="font-display font-semibold text-ink">ขนาดหน้าจอ (UI Scale)</span>
+					<span class="font-display font-bold tnum text-forest">{sUiScale}%</span>
+				</div>
+				<div class="text-sm text-ink-soft mb-3 mt-1">ปรับให้พอดีกับขนาดหน้าจอของคุณ</div>
+				<div class="flex items-center gap-3">
+					<span class="text-xl">A-</span>
+					<input 
+						type="range" 
+						min="70" max="150" step="5" 
+						bind:value={sUiScale} 
+						class="w-full accent-forest" 
+					/>
+					<span class="text-2xl">A+</span>
+				</div>
 			</label>
 
 			<!-- Dev Mode -->

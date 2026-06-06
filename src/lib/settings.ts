@@ -15,6 +15,8 @@ export interface Settings {
 	pinnedProductIds: string[];
 	/** โหมดการแสดงผลในหน้าแรก (all = แสดงทั้งหมดโดยพินอยู่บนสุด, pinned = แสดงเฉพาะที่พิน) */
 	pinMode: 'all' | 'pinned';
+	/** UI Scale (percentage, default 100) */
+	uiScale: number;
 }
 
 const DEFAULTS: Settings = {
@@ -24,7 +26,8 @@ const DEFAULTS: Settings = {
 	onboarded: false,
 	devMode: false,
 	pinnedProductIds: [],
-	pinMode: 'all'
+	pinMode: 'all',
+	uiScale: 100
 };
 
 let currentKey = 'lukmaekha-settings';
