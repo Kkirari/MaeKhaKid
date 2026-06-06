@@ -76,7 +76,8 @@ export async function syncProducts(): Promise<void> {
 	if (!user) return;
 
 	try {
-		const products = await db.products.where('is_active').equals(1).toArray();
+		const allProducts = await db.products.toArray();
+		const products = allProducts.filter((p) => p.is_active === 1);
 		if (!products.length) return;
 		const { error } = await supabase.from('products').upsert(
 			products.map((p) => ({
