@@ -47,6 +47,7 @@ create index if not exists idx_sale_items_sale_id on sale_items(sale_id);
 -- ===== Phase 2 migrations (safe for existing databases) =====
 
 alter table products add column if not exists min_stock int;
+alter table products add column if not exists image_url text;
 alter table sales    add column if not exists status text not null default 'completed';
 alter table sales    add column if not exists voided_at timestamptz;
 alter table sales    add column if not exists void_reason text;

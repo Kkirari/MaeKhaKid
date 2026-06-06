@@ -359,7 +359,7 @@
 									>
 								{/if}
 								<!-- Content -->
-								<div class="flex flex-1 flex-col justify-center gap-1.5 p-2.5">
+								<div class="flex flex-1 flex-col justify-center gap-1.5 p-2.5 {product.image_url ? '' : 'pt-7'}">
 									<div
 										class="line-clamp-2 shrink-0 font-display font-semibold leading-tight text-ink"
 										style="font-size:clamp(0.95rem, 1.5vw, 1.35rem)"
