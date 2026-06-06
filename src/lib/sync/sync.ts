@@ -138,6 +138,61 @@ export async function pullProductsIfEmpty(): Promise<void> {
 	}
 }
 
+export async function pullSalesIfEmpty(): Promise<void> {
+	const supabase = getSupabase();
+	if (!supabase) return;
+	const user = getCurrentUser();
+	if (!user) return;
+
+	const localCount = await db.sales.count();
+	if (localCount > 0) return;
+
+	try {
+		const { data: salesData, error: salesError } = await supabase
+			.from('sales')
+			.select('*')
+			.eq('user_id', user.id);
+		if (salesError || !salesData?.length) return;
+
+		const { data: itemsData, error: itemsError } = await supabase
+			.from('sale_items')
+			.select('*')
+			.eq('user_id', user.id);
+		if (itemsError) return;
+
+		await db.sales.bulkPut(
+			salesData.map((s) => ({
+				id: s.id,
+				created_at: new Date(s.created_at).getTime(),
+				total: Number(s.total),
+				payment_method: s.payment_method,
+				cash_received: s.cash_received != null ? Number(s.cash_received) : undefined,
+				change: s.change != null ? Number(s.change) : undefined,
+				status: s.status ?? 'completed',
+				voided_at: s.voided_at ? new Date(s.voided_at).getTime() : undefined,
+				void_reason: s.void_reason ?? undefined,
+				synced: 1
+			}))
+		);
+
+		if (itemsData?.length) {
+			await db.sale_items.bulkPut(
+				itemsData.map((i) => ({
+					id: i.id,
+					sale_id: i.sale_id,
+					product_id: i.product_id ?? null,
+					name: i.name,
+					price: Number(i.price),
+					qty: Number(i.qty),
+					subtotal: Number(i.subtotal)
+				}))
+			);
+		}
+	} catch (err) {
+		console.warn('[sync] sale pull failed:', err);
+	}
+}
+
 export async function pendingSyncCount(): Promise<number> {
 	return db.sales.where('synced').equals(0).count();
 }

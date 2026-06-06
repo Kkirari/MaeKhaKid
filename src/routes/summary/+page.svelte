@@ -10,7 +10,7 @@
 	} from '$lib/db/sales';
 	import { lowStockProducts } from '$lib/stores/catalog';
 	import { fmtBaht, fmtTime } from '$lib/format';
-	import { pendingSyncCount, syncPendingSales, isCloudEnabled } from '$lib/sync/sync';
+	import { pendingSyncCount, syncPendingSales, syncProducts, isCloudEnabled } from '$lib/sync/sync';
 	import { sendLineNotify, buildDailyReport } from '$lib/notify';
 	import { settings } from '$lib/settings';
 	import DatePicker from '$lib/components/DatePicker.svelte';
@@ -109,6 +109,7 @@
 	async function doSync() {
 		syncing = true;
 		await syncPendingSales();
+		await syncProducts();
 		await load();
 		syncing = false;
 	}

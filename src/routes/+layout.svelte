@@ -5,7 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { loadCatalog } from '$lib/stores/catalog';
 	import { seedIfEmpty } from '$lib/db/seed';
-	import { syncPendingSales, syncProducts, pullProductsIfEmpty, isCloudEnabled, syncStatus } from '$lib/sync/sync';
+	import { syncPendingSales, syncProducts, pullProductsIfEmpty, pullSalesIfEmpty, isCloudEnabled, syncStatus } from '$lib/sync/sync';
 	import { settings } from '$lib/settings';
 	import { initAuth, authUser, signOut } from '$lib/stores/auth';
 	import { clearAllData } from '$lib/db/schema';
@@ -36,6 +36,10 @@
 	);
 
 	async function handleSignOut() {
+		if (isCloudEnabled() && $authUser) {
+			await syncPendingSales();
+			await syncProducts();
+		}
 		await signOut();
 		await clearAllData();
 		goto('/login');
@@ -72,6 +76,7 @@
 
 		if (isCloudEnabled() && $authUser) {
 			await pullProductsIfEmpty();
+			await pullSalesIfEmpty();
 			await loadCatalog();
 			syncPendingSales();
 			syncProducts();
@@ -117,10 +122,12 @@
 				ready = false;
 				(async () => {
 					if ($settings.devMode) await seedIfEmpty();
-					await loadCatalog();
 					if (isCloudEnabled() && $authUser) {
 						await pullProductsIfEmpty();
-						await loadCatalog();
+						await pullSalesIfEmpty();
+					}
+					await loadCatalog();
+					if (isCloudEnabled() && $authUser) {
 						syncPendingSales();
 						syncProducts();
 					}
@@ -136,10 +143,12 @@
 			ready = false;
 			(async () => {
 				if ($settings.devMode) await seedIfEmpty();
-				await loadCatalog();
 				if (isCloudEnabled() && $authUser) {
 					await pullProductsIfEmpty();
-					await loadCatalog();
+					await pullSalesIfEmpty();
+				}
+				await loadCatalog();
+				if (isCloudEnabled() && $authUser) {
 					syncPendingSales();
 					syncProducts();
 				}
