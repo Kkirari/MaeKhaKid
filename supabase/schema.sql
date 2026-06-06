@@ -54,9 +54,37 @@ alter table sales    add column if not exists void_reason text;
 -- Backfill: set status on any existing rows that were inserted before Phase 2
 update sales set status = 'completed' where status is null;
 
--- ===== RLS =====
--- Phase 1/2: RLS off — single tablet, single anon key.
--- Enable + add policies before opening to multiple devices or users.
-alter table products    disable row level security;
-alter table sales       disable row level security;
-alter table sale_items  disable row level security;
+-- ===== Phase 3 migrations: Auth + RLS =====
+-- Run this after Phase 1 & 2. Safe to re-run.
+
+alter table products   add column if not exists user_id uuid references auth.users(id);
+alter table sales      add column if not exists user_id uuid references auth.users(id);
+alter table sale_items add column if not exists user_id uuid references auth.users(id);
+
+create index if not exists idx_products_user_id    on products(user_id);
+create index if not exists idx_sales_user_id       on sales(user_id);
+create index if not exists idx_sale_items_user_id  on sale_items(user_id);
+create index if not exists idx_sale_items_product_id on sale_items(product_id);
+create index if not exists idx_sales_created_status  on sales(created_at, status);
+
+-- Enable RLS — แต่ละ user เห็นข้อมูลของตัวเองเท่านั้น
+alter table products    enable row level security;
+alter table sales       enable row level security;
+alter table sale_items  enable row level security;
+
+-- Drop old permissive policies if they exist (idempotent re-run safety)
+drop policy if exists "own products"  on products;
+drop policy if exists "own sales"     on sales;
+drop policy if exists "own items"     on sale_items;
+
+create policy "own products" on products
+    for all using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+create policy "own sales" on sales
+    for all using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);
+
+create policy "own items" on sale_items
+    for all using (auth.uid() = user_id)
+    with check (auth.uid() = user_id);

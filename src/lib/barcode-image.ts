@@ -7,9 +7,13 @@ export interface BarcodeDetails {
 
 /** ดึงข้อมูลสินค้าจากบาร์โค้ดผ่าน Open Food Facts (ฟรี, ไม่ต้อง API key, รองรับ CORS) */
 export async function fetchBarcodeDetails(barcode: string): Promise<BarcodeDetails | null> {
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), 5000);
+
 	try {
 		const res = await fetch(
-			`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`
+			`https://world.openfoodfacts.org/api/v0/product/${encodeURIComponent(barcode)}.json`,
+			{ signal: controller.signal }
 		);
 		if (!res.ok) return null;
 		const data = await res.json();
@@ -35,7 +39,10 @@ export async function fetchBarcodeDetails(barcode: string): Promise<BarcodeDetai
 
 		if (!name && !image_url) return null; // ไม่มีข้อมูลที่เป็นประโยชน์เลย
 		return { name, brand, category, image_url };
-	} catch {
-		return null; // เน็ตหลุด / ไม่พบ — ไม่ขึ้น error
+	} catch (error: any) {
+		// Catch AbortError and return null
+		return null;
+	} finally {
+		clearTimeout(timeoutId);
 	}
 }

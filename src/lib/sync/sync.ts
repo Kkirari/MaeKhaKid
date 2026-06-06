@@ -1,5 +1,9 @@
+import { writable } from 'svelte/store';
 import { db } from '$lib/db/schema';
 import { getSupabase, isCloudEnabled } from './supabase';
+import { getCurrentUser } from '$lib/stores/auth';
+
+export const syncStatus = writable<{ pending: number; error: boolean }>({ pending: 0, error: false });
 
 let running = false;
 
@@ -8,10 +12,15 @@ export async function syncPendingSales(): Promise<{ pushed: number; skipped: boo
 	const supabase = getSupabase();
 	if (!supabase) return { pushed: 0, skipped: true };
 
+	const user = getCurrentUser();
+	if (!user) return { pushed: 0, skipped: true };
+
 	running = true;
 	let pushed = 0;
 	try {
 		const pending = await db.sales.where('synced').equals(0).toArray();
+		syncStatus.set({ pending: pending.length, error: false });
+
 		for (const sale of pending) {
 			const items = await db.sale_items.where('sale_id').equals(sale.id).toArray();
 
@@ -24,7 +33,8 @@ export async function syncPendingSales(): Promise<{ pushed: number; skipped: boo
 				change: sale.change ?? null,
 				status: sale.status ?? 'completed',
 				voided_at: sale.voided_at ? new Date(sale.voided_at).toISOString() : null,
-				void_reason: sale.void_reason ?? null
+				void_reason: sale.void_reason ?? null,
+				user_id: user.id
 			});
 			if (saleErr) throw saleErr;
 
@@ -37,7 +47,8 @@ export async function syncPendingSales(): Promise<{ pushed: number; skipped: boo
 						name: i.name,
 						price: i.price,
 						qty: i.qty,
-						subtotal: i.subtotal
+						subtotal: i.subtotal,
+						user_id: user.id
 					}))
 				);
 				if (itemErr) throw itemErr;
@@ -45,13 +56,86 @@ export async function syncPendingSales(): Promise<{ pushed: number; skipped: boo
 
 			await db.sales.update(sale.id, { synced: 1 });
 			pushed++;
+			syncStatus.set({ pending: pending.length - pushed, error: false });
 		}
+		syncStatus.set({ pending: 0, error: false });
 	} catch (err) {
 		console.warn('[sync] push failed, will retry:', err);
+		const count = await pendingSyncCount();
+		syncStatus.set({ pending: count, error: true });
 	} finally {
 		running = false;
 	}
 	return { pushed, skipped: false };
+}
+
+export async function syncProducts(): Promise<void> {
+	const supabase = getSupabase();
+	if (!supabase) return;
+	const user = getCurrentUser();
+	if (!user) return;
+
+	try {
+		const products = await db.products.where('is_active').equals(1).toArray();
+		if (!products.length) return;
+		const { error } = await supabase.from('products').upsert(
+			products.map((p) => ({
+				id: p.id,
+				barcode: p.barcode,
+				name: p.name,
+				price: p.price,
+				cost: p.cost ?? null,
+				stock: p.stock,
+				min_stock: p.min_stock ?? null,
+				category: p.category ?? null,
+				unit: p.unit ?? null,
+				is_active: p.is_active,
+				image_url: p.image_url ?? null,
+				updated_at: new Date(p.updated_at).toISOString(),
+				user_id: user.id
+			}))
+		);
+		if (error) console.warn('[sync] product push failed:', error);
+	} catch (err) {
+		console.warn('[sync] product sync error:', err);
+	}
+}
+
+export async function pullProductsIfEmpty(): Promise<void> {
+	const supabase = getSupabase();
+	if (!supabase) return;
+	const user = getCurrentUser();
+	if (!user) return;
+
+	const localCount = await db.products.count();
+	if (localCount > 0) return;
+
+	try {
+		const { data, error } = await supabase
+			.from('products')
+			.select('*')
+			.eq('user_id', user.id);
+		if (error || !data?.length) return;
+
+		await db.products.bulkPut(
+			data.map((p) => ({
+				id: p.id,
+				barcode: p.barcode ?? null,
+				name: p.name,
+				price: Number(p.price),
+				cost: p.cost != null ? Number(p.cost) : undefined,
+				stock: Number(p.stock),
+				min_stock: p.min_stock != null ? Number(p.min_stock) : undefined,
+				category: p.category ?? undefined,
+				unit: p.unit ?? undefined,
+				is_active: Number(p.is_active),
+				image_url: p.image_url ?? undefined,
+				updated_at: new Date(p.updated_at).getTime()
+			}))
+		);
+	} catch (err) {
+		console.warn('[sync] product pull failed:', err);
+	}
 }
 
 export async function pendingSyncCount(): Promise<number> {

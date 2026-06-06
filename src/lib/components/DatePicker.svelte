@@ -70,6 +70,7 @@
 		onchange?.();
 	}
 	function select(date: string) {
+		if (date > today) return;
 		value = date;
 		open = false;
 		onchange?.();
@@ -113,13 +114,16 @@
 				{#each calendarDays as cell (cell.date)}
 					{@const isSelected = cell.date === value}
 					{@const isToday = cell.date === today}
+					{@const isFuture = cell.date > today}
 					<button
 						class="day-cell"
 						class:selected={isSelected}
 						class:is-today={isToday && !isSelected}
 						class:other-month={!cell.cur}
 						onclick={() => select(cell.date)}
-						tabindex={cell.cur ? 0 : -1}
+						tabindex={cell.cur && !isFuture ? 0 : -1}
+						disabled={isFuture}
+						style={isFuture ? "opacity: 0.4; pointer-events: none; cursor: not-allowed;" : ""}
 					>
 						{cell.day}
 					</button>

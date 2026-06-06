@@ -86,6 +86,11 @@ export class PosDatabase extends Dexie {
 
 export const db = new PosDatabase();
 
+/** ล้างข้อมูลทั้งหมดใน IndexedDB (ใช้ตอน logout หรือ reset) */
+export async function clearAllData(): Promise<void> {
+	await Promise.all([db.products.clear(), db.sales.clear(), db.sale_items.clear()]);
+}
+
 /** สร้าง id แบบ uuid (มี fallback เผื่อ WebView เก่าไม่มี crypto.randomUUID) */
 export function newId(): string {
 	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {

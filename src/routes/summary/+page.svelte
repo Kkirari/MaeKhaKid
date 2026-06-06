@@ -30,17 +30,80 @@
 	let sendResult = $state('');
 	let showBestSellers = $state(true);
 	let voidingId = $state<string | null>(null);
+	let loadError = $state(false);
 	const cloud = isCloudEnabled();
+	let visibleSalesLimit = $state(30);
+
+	$effect(() => {
+		// Reset visibleSalesLimit when dateStr changes
+		dateStr;
+		visibleSalesLimit = 30;
+	});
+
+	function handleScroll(e: Event) {
+		const target = e.currentTarget as HTMLDivElement;
+		if (target.scrollHeight - target.scrollTop - target.clientHeight < 100) {
+			if (summary && visibleSalesLimit < summary.sales.length) {
+				visibleSalesLimit += 30;
+			}
+		}
+	}
 
 	async function load() {
+		loadError = false;
+
+		// Guard against future date selection (clamp to today)
+		const today = new Date();
+		today.setMinutes(today.getMinutes() - today.getTimezoneOffset());
+		const todayString = today.toISOString().slice(0, 10);
+		if (dateStr > todayString) {
+			dateStr = todayString;
+		}
+
 		const [y, m, d] = dateStr.split('-').map(Number);
 		const date = new Date(y, m - 1, d);
 		const end = new Date(y, m - 1, d);
-		[summary, bestSellers, pending] = await Promise.all([
+
+		const results = await Promise.allSettled([
 			getDailySummary(date),
 			getBestSellers(date, end),
 			pendingSyncCount()
 		]);
+
+		// getDailySummary
+		if (results[0].status === 'fulfilled') {
+			summary = results[0].value;
+		} else {
+			console.error('[load] getDailySummary failed:', results[0].reason);
+			loadError = true;
+			summary = {
+				date: dateStr,
+				count: 0,
+				total: 0,
+				cashTotal: 0,
+				promptpayTotal: 0,
+				profit: null,
+				sales: []
+			};
+		}
+
+		// getBestSellers
+		if (results[1].status === 'fulfilled') {
+			bestSellers = results[1].value;
+		} else {
+			console.error('[load] getBestSellers failed:', results[1].reason);
+			loadError = true;
+			bestSellers = [];
+		}
+
+		// pendingSyncCount
+		if (results[2].status === 'fulfilled') {
+			pending = results[2].value;
+		} else {
+			console.error('[load] pendingSyncCount failed:', results[2].reason);
+			loadError = true;
+			pending = 0;
+		}
 	}
 
 	async function doSync() {
@@ -139,6 +202,12 @@
 		</div>
 	</div>
 
+	{#if loadError}
+		<div class="mb-3 rounded-2xl bg-[#f0ddd3] px-4 py-2.5 text-center font-semibold text-alert-ink animate-pop" style="color: var(--color-alert-ink)">
+			⚠️ โหลดข้อมูลไม่ครบ ลองใหม่ <button class="btn btn-soft py-1 px-3 ml-2 text-sm inline-flex items-center" onclick={load}>โหลดอีกครั้ง</button>
+		</div>
+	{/if}
+
 	{#if sendResult}
 		<div
 			class="mb-2 animate-pop rounded-2xl px-4 py-2 text-center font-semibold"
@@ -188,8 +257,8 @@
 			<!-- ===== รายการบิล ===== -->
 			<div class="flex min-w-0 flex-1 flex-col overflow-hidden">
 				<h2 class="mb-2 font-display font-bold text-ink-soft">รายการบิล</h2>
-				<div class="flex-1 overflow-y-auto">
-					{#each summary.sales as sale, i (sale.id)}
+				<div class="flex-1 overflow-y-auto" onscroll={handleScroll}>
+					{#each summary.sales.slice(0, visibleSalesLimit) as sale, i (sale.id)}
 						{@const voided = sale.status === 'voided'}
 						<div
 							class="card mb-2 flex items-center gap-2 p-3"
@@ -237,6 +306,11 @@
 							<div class="mt-2 font-display">ยังไม่มีการขายในวันนี้</div>
 						</div>
 					{/each}
+					{#if visibleSalesLimit < summary.sales.length}
+						<button class="btn btn-soft w-full py-3 mt-2 font-semibold font-display shrink-0" onclick={() => visibleSalesLimit += 30}>
+							แสดงเพิ่มเติม ({summary.sales.length - visibleSalesLimit} รายการ)
+						</button>
+					{/if}
 				</div>
 			</div>
 

@@ -24,12 +24,16 @@
 	let qrUrl = $state<string>('');
 	let qrError = $state<string>('');
 	let saving = $state(false);
+	let error = $state('');
 
 	const NOTES = [20, 50, 100, 500, 1000];
 
 	const quickCash = $derived.by(() => {
-		const filtered = NOTES.filter((n) => n >= total);
-		if (filtered.length > 0) return filtered;
+		const above = NOTES.filter((n) => n >= total);
+		const below = NOTES.filter((n) => n < total);
+		// include the largest note below total so cashier can combine (e.g. 100+100 for 158 ฿)
+		const candidates = below.length > 0 ? [below[below.length - 1], ...above] : above;
+		if (candidates.length > 0) return candidates;
 		const base = Math.ceil(total / 1000) * 1000;
 		return [base, base + 1000, base + 2000];
 	});
@@ -79,6 +83,7 @@
 	async function confirm() {
 		if (saving) return;
 		saving = true;
+		error = '';
 		try {
 			await createSale({
 				lines,
@@ -90,6 +95,8 @@
 			beepOk();
 			cart.clear();
 			onDone();
+		} catch (e: any) {
+			error = e.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
 		} finally {
 			saving = false;
 		}
@@ -112,14 +119,14 @@
 		</div>
 
 		<!-- เลือกวิธีจ่าย -->
-		<div class="grid grid-cols-2 gap-2 p-2.5">
+		<div class="grid grid-cols-2 gap-2.5 p-2.5">
 			<button
 				class="btn py-3 text-lg {method === 'cash' ? 'btn-primary' : 'btn-soft'}"
-				onclick={() => (method = 'cash')}>💵 เงินสด</button
+				onclick={() => { method = 'cash'; error = ''; }}>💵 เงินสด</button
 			>
 			<button
 				class="btn py-3 text-lg {method === 'promptpay' ? 'btn-primary' : 'btn-soft'}"
-				onclick={() => (method = 'promptpay')}>📱 พร้อมเพย์</button
+				onclick={() => { method = 'promptpay'; error = ''; }}>📱 พร้อมเพย์</button
 			>
 		</div>
 
@@ -209,6 +216,12 @@
 				</div>
 			{/if}
 		</div>
+
+		{#if error}
+			<div class="mx-4 mb-2 animate-pop rounded-xl px-4 py-2.5 text-center text-sm font-semibold text-alert-ink bg-sand-soft" style="color: var(--color-alert-ink); background: var(--color-sand-soft);">
+				⚠️ {error}
+			</div>
+		{/if}
 
 		<!-- ปุ่มล่าง -->
 		<div class="grid grid-cols-[1fr_2fr] gap-2 border-t-2 border-dashed border-line p-2.5">

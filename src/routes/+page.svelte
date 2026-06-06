@@ -6,6 +6,7 @@
 	import { beepOk, beepError } from '$lib/sound';
 	import PaymentModal from '$lib/components/PaymentModal.svelte';
 	import type { Product } from '$lib/db/schema';
+	import { settings } from '$lib/settings';
 
 	const PAGE_SIZE = 9; // 3 x 3 ต่อหน้า
 
@@ -13,6 +14,7 @@
 	let gridScroll = $state<HTMLDivElement | null>(null);
 	let scanValue = $state('');
 	let searchQuery = $state('');
+	let inputSearchQuery = $state('');
 	let paymentOpen = $state(false);
 	let currentPage = $state(0);
 	let toast = $state('');
@@ -21,12 +23,37 @@
 	let flashKey = $state('');
 	let flashTimer: ReturnType<typeof setTimeout>;
 
+	$effect(() => {
+		const q = inputSearchQuery;
+		const timer = setTimeout(() => {
+			searchQuery = q;
+		}, 250);
+		return () => clearTimeout(timer);
+	});
+
 	const filtered = $derived.by(() => {
 		const q = searchQuery.trim().toLowerCase();
-		if (!q) return $products;
-		return $products.filter(
-			(p) => p.name.toLowerCase().includes(q) || (p.barcode ?? '').includes(q)
-		);
+		let base = $products;
+		
+		if (q) {
+			base = base.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode ?? '').includes(q));
+		}
+		
+		const pinnedIds = new Set($settings.pinnedProductIds || []);
+		
+		if ($settings.pinMode === 'pinned') {
+			base = base.filter((p) => pinnedIds.has(p.id));
+		}
+		
+		base.sort((a, b) => {
+			const aPinned = pinnedIds.has(a.id);
+			const bPinned = pinnedIds.has(b.id);
+			if (aPinned && !bPinned) return -1;
+			if (!aPinned && bPinned) return 1;
+			return 0;
+		});
+
+		return base;
 	});
 
 	const pages = $derived.by(() => {
@@ -121,6 +148,21 @@
 		showToast('บันทึกการขายแล้ว ✓', 'ok');
 		products.update((list) => [...list]);
 		refocusScan();
+	}
+
+	function togglePinMode() {
+		settings.save({ pinMode: $settings.pinMode === 'pinned' ? 'all' : 'pinned' });
+	}
+
+	function togglePin(e: MouseEvent, productId: string) {
+		e.stopPropagation();
+		const currentPins = new Set($settings.pinnedProductIds || []);
+		if (currentPins.has(productId)) {
+			currentPins.delete(productId);
+		} else {
+			currentPins.add(productId);
+		}
+		settings.save({ pinnedProductIds: Array.from(currentPins) });
 	}
 
 	onMount(() => {
@@ -223,15 +265,28 @@
 				inputmode="none"
 			/>
 		</div>
-		<div class="relative">
-			<span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ink-soft">🔍</span>
-			<input
-				bind:value={searchQuery}
-				placeholder="ค้นหาชื่อสินค้า…"
-				class="field py-2.5"
-				style="padding-left:3rem"
-				autocomplete="off"
-			/>
+		<div class="flex items-center gap-2">
+			<div class="relative flex-1">
+				<span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-ink-soft">🔍</span>
+				<input
+					bind:value={inputSearchQuery}
+					placeholder="ค้นหาชื่อสินค้า…"
+					class="field py-2.5"
+					style="padding-left:3rem"
+					autocomplete="off"
+				/>
+			</div>
+			<button
+				class="btn btn-soft h-11 px-3 font-display text-sm"
+				onclick={togglePinMode}
+				title="สลับการแสดงผลพิน"
+			>
+				{#if $settings.pinMode === 'pinned'}
+					<span class="mr-1 text-amber-500">📌</span> เฉพาะพิน
+				{:else}
+					📋 ทั้งหมด
+				{/if}
+			</button>
 		</div>
 
 		<!-- แถบแจ้งเตือนสต๊อกต่ำ -->
@@ -265,11 +320,26 @@
 				{#each pages as pageItems, pi (pi)}
 					<div class="grid w-full shrink-0 snap-start grid-cols-3 grid-rows-3 gap-2.5 pr-0.5">
 						{#each pageItems as product (product.id)}
-							<button
-								class="card relative flex flex-col overflow-hidden p-0 text-left active:translate-y-0.5"
+							<div
+								role="button"
+								tabindex="0"
+								class="card relative flex flex-col overflow-hidden p-0 text-left active:translate-y-0.5 cursor-pointer"
 								style="box-shadow: 0 3px 0 var(--color-line)"
 								onclick={() => addFromGrid(product)}
+								onkeydown={(e) => e.key === 'Enter' && addFromGrid(product)}
 							>
+								<!-- ปุ่มพิน -->
+								<button
+									class="absolute left-1.5 top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-paper/80 shadow backdrop-blur transition-transform hover:scale-110 active:scale-95"
+									onclick={(e) => togglePin(e, product.id)}
+									title={$settings.pinnedProductIds?.includes(product.id) ? 'เลิกพิน' : 'พินสินค้านี้'}
+								>
+									{#if $settings.pinnedProductIds?.includes(product.id)}
+										<span class="text-base text-amber-500">📌</span>
+									{:else}
+										<span class="text-base text-ink-soft opacity-60">📌</span>
+									{/if}
+								</button>
 								<!-- รูปสินค้า (full-bleed banner) -->
 								{#if product.image_url}
 									<img
@@ -309,7 +379,7 @@
 										>
 									</div>
 								</div>
-							</button>
+							</div>
 						{/each}
 					</div>
 				{/each}

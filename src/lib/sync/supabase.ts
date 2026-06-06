@@ -15,7 +15,7 @@ export function getSupabase(): SupabaseClient | null {
 	const url = env.PUBLIC_SUPABASE_URL;
 	const key = env.PUBLIC_SUPABASE_ANON_KEY;
 	if (url && key) {
-		client = createClient(url, key, { auth: { persistSession: false } });
+		client = createClient(url, key);
 	}
 	return client;
 }

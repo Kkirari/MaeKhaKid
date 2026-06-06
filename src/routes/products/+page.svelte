@@ -8,22 +8,48 @@
 		type ProductInput
 	} from '$lib/db/products';
 	import { loadCatalog } from '$lib/stores/catalog';
-	import { settings } from '$lib/settings';
 	import { fmtBaht } from '$lib/format';
 	import { fetchBarcodeDetails } from '$lib/barcode-image';
 	import type { Product } from '$lib/db/schema';
 
 	let items = $state<Product[]>([]);
 	let query = $state('');
-	let filter = $state<'all' | 'low' | 'out' | 'inactive'>('all');
+	let inputQuery = $state('');
+	let filter = $state<'all' | 'active' | 'low' | 'out' | 'inactive'>('active');
 	let sort = $state<'name' | 'price' | 'stock'>('name');
 	let showForm = $state(false);
-	let showSettings = $state(false);
 	let formError = $state('');
 	let adjustingId = $state<string | null>(null);
 	let view = $state<'row' | 'card'>('row');
 	let fetchingImage = $state(false);
 	let imageNotFound = $state(false);
+	let imageTimeout = $state(false);
+	let limit = $state(40);
+
+	$effect(() => {
+		const q = inputQuery;
+		const timer = setTimeout(() => {
+			query = q;
+		}, 300);
+		return () => clearTimeout(timer);
+	});
+
+	$effect(() => {
+		// Reset limit when query, filter, or sort changes
+		query;
+		filter;
+		sort;
+		limit = 40;
+	});
+
+	function handleScroll(e: Event) {
+		const target = e.currentTarget as HTMLDivElement;
+		if (target.scrollHeight - target.scrollTop - target.clientHeight < 120) {
+			if (limit < filtered.length) {
+				limit += 40;
+			}
+		}
+	}
 	let barcodeTimer: ReturnType<typeof setTimeout>;
 
 	let editingId = $state<string | null>(null);
@@ -40,10 +66,6 @@
 		image_url: ''
 	});
 
-	let sShopName = $state('');
-	let sPromptpay = $state('');
-	let sLineToken = $state('');
-
 	const filtered = $derived.by(() => {
 		const q = query.trim().toLowerCase();
 		let list = items;
@@ -52,10 +74,11 @@
 		if (q) list = list.filter((p) => p.name.toLowerCase().includes(q) || (p.barcode ?? '').includes(q));
 
 		// filter chips
-		if (filter === 'low') list = list.filter((p) => p.min_stock != null && p.stock > 0 && p.stock <= p.min_stock);
-		else if (filter === 'out') list = list.filter((p) => p.stock <= 0);
+		if (filter === 'active') list = list.filter((p) => p.is_active === 1);
+		else if (filter === 'low') list = list.filter((p) => p.min_stock != null && p.stock > 0 && p.stock <= p.min_stock && p.is_active === 1);
+		else if (filter === 'out') list = list.filter((p) => p.stock <= 0 && p.is_active === 1);
 		else if (filter === 'inactive') list = list.filter((p) => p.is_active === 0);
-		else list = list.filter((p) => p.is_active === 1); // 'all' shows active only
+		// 'all' shows all products (no is_active filter)
 
 		// sort
 		if (sort === 'price') list = [...list].sort((a, b) => a.price - b.price);
@@ -91,6 +114,8 @@
 		if (code.length < 8) return;
 		fetchingImage = true;
 		imageNotFound = false;
+		imageTimeout = false;
+		const startTime = Date.now();
 		try {
 			const details = await fetchBarcodeDetails(code);
 			if (details) {
@@ -100,7 +125,11 @@
 				if (!f.category.trim() && details.category) f.category = details.category;
 				imageNotFound = !details.image_url;
 			} else {
-				imageNotFound = true;
+				if (Date.now() - startTime >= 4900) {
+					imageTimeout = true;
+				} else {
+					imageNotFound = true;
+				}
 			}
 		} finally {
 			fetchingImage = false;
@@ -110,6 +139,7 @@
 	function onBarcodeInput() {
 		clearTimeout(barcodeTimer);
 		imageNotFound = false;
+		imageTimeout = false;
 		if (f.barcode.trim().length >= 8) {
 			barcodeTimer = setTimeout(tryFetchImage, 600);
 		}
@@ -132,6 +162,7 @@
 		formError = '';
 		fetchingImage = false;
 		imageNotFound = false;
+		imageTimeout = false;
 		f = { barcode: '', name: '', price: '', cost: '', stock: '', min_stock: '', category: '', unit: '', is_active: true, image_url: '' };
 		showForm = true;
 	}
@@ -141,6 +172,7 @@
 		formError = '';
 		fetchingImage = false;
 		imageNotFound = false;
+		imageTimeout = false;
 		f = {
 			barcode: p.barcode ?? '',
 			name: p.name,
@@ -189,17 +221,6 @@
 		await reload();
 	}
 
-	function openSettings() {
-		sShopName = $settings.shopName;
-		sPromptpay = $settings.promptpayId;
-		sLineToken = $settings.lineNotifyToken;
-		showSettings = true;
-	}
-	function saveSettings() {
-		settings.save({ shopName: sShopName.trim(), promptpayId: sPromptpay.trim(), lineNotifyToken: sLineToken.trim() });
-		showSettings = false;
-	}
-
 	onMount(reload);
 </script>
 
@@ -210,7 +231,7 @@
 		<span class="rounded-full bg-paper-2 px-2.5 py-0.5 text-sm font-semibold tnum text-ink-soft">{items.filter(p=>p.is_active===1).length}</span>
 		<div class="relative flex-1" style="min-width:160px">
 			<span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft">🔍</span>
-			<input bind:value={query} placeholder="ค้นหา…" class="field py-2" style="padding-left:2.6rem" />
+			<input bind:value={inputQuery} placeholder="ค้นหา…" class="field py-2" style="padding-left:2.6rem" />
 		</div>
 		<!-- Sort -->
 		<select bind:value={sort} class="field w-auto py-2 pr-8 text-sm font-semibold" style="background-image:none">
@@ -222,14 +243,14 @@
 			title={view === 'row' ? 'มุมมองการ์ด' : 'มุมมองแถว'}>
 			{view === 'row' ? '⊞' : '☰'}
 		</button>
-		<button class="btn btn-soft py-2" onclick={openSettings}>⚙️</button>
 		<button class="btn btn-primary py-2" onclick={openAdd}>+ เพิ่ม</button>
 	</div>
 
 	<!-- ===== Filter chips ===== -->
-	<div class="flex shrink-0 gap-2">
+	<div class="flex shrink-0 gap-2 overflow-x-auto pb-1">
 		{#each [
-			{ key: 'all',      label: 'ทั้งหมด',    count: null },
+			{ key: 'active',   label: 'ที่ขายอยู่',   count: items.filter(p => p.is_active === 1).length },
+			{ key: 'all',      label: 'ทั้งหมด',    count: items.length },
 			{ key: 'low',      label: 'สต๊อกต่ำ',   count: lowCount },
 			{ key: 'out',      label: 'หมด',         count: outCount },
 			{ key: 'inactive', label: 'ปิดขาย',     count: inactiveCount }
@@ -242,7 +263,7 @@
 				onclick={() => (filter = chip.key as typeof filter)}
 			>
 				{chip.label}
-				{#if chip.count}
+				{#if chip.count !== null}
 					<span class="rounded-full px-1.5 py-0.5 text-xs tnum"
 						style={filter === chip.key ? 'background:rgba(255,255,255,0.25)' : 'background:var(--color-paper-2)'}
 					>{chip.count}</span>
@@ -252,7 +273,7 @@
 	</div>
 
 	<!-- ===== List / Card ===== -->
-	<div class="flex-1 overflow-y-auto">
+	<div class="flex-1 overflow-y-auto" onscroll={handleScroll}>
 		{#if filtered.length === 0}
 			<div class="mt-20 text-center text-ink-soft">
 				<div class="text-5xl">📦</div>
@@ -261,7 +282,7 @@
 		{:else if view === 'row'}
 			<!-- ===== Row view ===== -->
 			<div class="flex flex-col gap-2">
-				{#each filtered as p, i (p.id)}
+				{#each filtered.slice(0, limit) as p, i (p.id)}
 					{@const state = cardState(p)}
 					{@const barW = stockBarWidth(p)}
 					{@const barColor = state === 'out' ? 'var(--color-alert)' : state === 'low' ? '#d97706' : 'var(--color-forest)'}
@@ -343,7 +364,7 @@
 		{:else}
 			<!-- ===== Card grid ===== -->
 			<div class="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
-				{#each filtered as p, i (p.id)}
+				{#each filtered.slice(0, limit) as p, i (p.id)}
 					{@const state = cardState(p)}
 					{@const barW = stockBarWidth(p)}
 					{@const barColor = state === 'out' ? 'var(--color-alert)' : state === 'low' ? '#d97706' : 'var(--color-forest)'}
@@ -433,6 +454,11 @@
 				{/each}
 			</div>
 		{/if}
+		{#if limit < filtered.length}
+			<button class="btn btn-soft w-full py-3 mt-3 font-semibold font-display shrink-0" onclick={() => limit += 40}>
+				แสดงเพิ่มเติม ({filtered.length - limit} รายการ)
+			</button>
+		{/if}
 	</div>
 </div>
 
@@ -482,6 +508,11 @@
 								onclick={() => { f.image_url = ''; imageNotFound = false; }}>ลบรูป</button>
 						</div>
 					</div>
+				{:else if imageTimeout}
+					<div class="flex items-center justify-between rounded-xl px-3 py-2 text-sm" style="background:var(--color-paper-2)">
+						<span class="font-semibold text-alert-ink" style="color:var(--color-alert-ink)">หมดเวลาดึงข้อมูล</span>
+						<button type="button" class="font-semibold" style="color:var(--color-forest)" onclick={tryFetchImage}>ลองใหม่</button>
+					</div>
 				{:else if imageNotFound}
 					<div class="flex items-center justify-between rounded-xl px-3 py-2 text-sm" style="background:var(--color-paper-2)">
 						<span class="text-ink-soft">ไม่พบข้อมูลใน Open Food Facts</span>
@@ -529,39 +560,6 @@
 					{/if}
 				{/if}
 				<button class="btn btn-success py-3 text-lg" onclick={submit}>บันทึก</button>
-			</div>
-		</div>
-	</div>
-{/if}
-
-<!-- ตั้งค่า -->
-{#if showSettings}
-	<div
-		class="fixed inset-0 z-50 flex items-center justify-center p-4"
-		style="background: rgba(36,31,23,0.55)"
-		role="presentation"
-		onclick={(e) => e.target === e.currentTarget && (showSettings = false)}
-	>
-		<div class="animate-pop card w-full max-w-md overflow-hidden p-0">
-			<div class="bg-ink px-5 py-4 font-display text-xl font-bold text-paper">ตั้งค่าร้าน</div>
-			<div class="space-y-3 p-5">
-				<label class="block">
-					<span class="text-sm font-semibold text-ink-soft">ชื่อร้าน</span>
-					<input bind:value={sShopName} class="field mt-1" />
-				</label>
-				<label class="block">
-					<span class="text-sm font-semibold text-ink-soft">เบอร์พร้อมเพย์ / เลขบัตรประชาชน (สำหรับ QR)</span>
-					<input bind:value={sPromptpay} inputmode="numeric" placeholder="08xxxxxxxx" class="field mt-1 tnum" />
-				</label>
-				<label class="block">
-					<span class="text-sm font-semibold text-ink-soft">Line Notify Token</span>
-					<input bind:value={sLineToken} placeholder="วางโทเค็นจาก notify-bot.line.me" class="field mt-1" />
-					<a href="https://notify-bot.line.me/my/" target="_blank" rel="noopener" class="mt-1 block text-xs" style="color:var(--color-forest)">→ สร้าง token ที่ notify-bot.line.me</a>
-				</label>
-			</div>
-			<div class="grid grid-cols-2 gap-2.5 border-t-2 border-dashed border-line p-3">
-				<button class="btn btn-soft py-3 text-lg" onclick={() => (showSettings = false)}>ยกเลิก</button>
-				<button class="btn btn-success py-3 text-lg" onclick={saveSettings}>บันทึก</button>
 			</div>
 		</div>
 	</div>

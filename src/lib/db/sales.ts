@@ -52,6 +52,9 @@ export async function createSale(payload: CheckoutPayload): Promise<CompletedSal
 			if (!line.product_id) continue;
 			const product = await db.products.get(line.product_id);
 			if (product) {
+				if (product.stock < line.qty) {
+					throw new Error('สต๊อกไม่พอ: ' + line.name);
+				}
 				await db.products.update(line.product_id, {
 					stock: product.stock - line.qty,
 					updated_at: now
